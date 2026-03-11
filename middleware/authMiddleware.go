@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"Authentication_Using_JWT/controller"
-	"Authentication_Using_JWT/middleware"
+	//"Authentication_Using_JWT/middleware"
 
 	"github.com/gin-gonic/gin"
 )
