@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-type user struct {
+type User struct {
 	Id            int       `json:"id"`
 	FirstName     string    `json:"first_name" validate:"required, min=2, max=100"`
 	LastName      string    `json:"last_name" validate:"required, min=2, max=100"`
