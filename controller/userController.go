@@ -18,21 +18,38 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// declares and initializes a variable that represents a MongoDB collection
+// userCollection(variable name): It will hold a reference to a MongoDB collection called "user".
+// *mongo.Collection: type of variable. The * means pointer to mongo.Collection.
+// the variable stores a memory address pointing to a MongoDB collection object, not the object itself.
+// database.OpenCollection(...) : Connects to a specific MongoDB collection
 var userCollection *mongo.Collection = database.OpenCollection(database.Client, "user")
+
+// responsible for checking validation rules on structs.
+// ex: Name     string `validate:"required"`
 var validate = validator.New()
 
+// Function to hash password
 func HashPassword(password string) string {
+	// []byte(password): converts the string to slice of bytes
+	// 14 : this is cost, as cost increases security increases and speed decreases.
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		log.Panic(err)
 	}
-	return string(bytes)
+	return string(bytes) // converts: []byte → string and returns string
 }
 
 // verifies whether a user-entered password matches a stored hashed password
-func VerifyPassword(userPassword string, providedPassword string) (bool, string) {
+func VerifyPassword(providedPassword string, userPassword string) (bool, string) {
 
-	err := bcrypt.CompareHashAndPassword([]byte(userPassword), []byte(providedPassword))
+	// userPassword : hashed password stored in db, providedPassword: Password entered by the user during login
+	// what bcrypt.CompareHashAndPassword() does is it extracts algo salt and cost from already hashed password(userPassword)
+	// then hashes the password entered by user(userPassword) after hashing user entered
+	// password now, both passwords are compared.
+	// Note: if u hash same password using same algo and cost twice, it will produce diff results
+	// Salt is a random value added to the password before hashing.
+	err := bcrypt.CompareHashAndPassword([]byte(userPassword), []byte(userPassword))
 
 	check := true
 	msg := ""
@@ -45,6 +62,7 @@ func VerifyPassword(userPassword string, providedPassword string) (bool, string)
 	return check, msg
 }
 
+// User Signup function
 func Signup() gin.HandlerFunc { // This function returns a Gin HTTP handler.
 	return func(ctx *gin.Context) {
 		c, cancel := context.WithTimeout(context.Background(), 100*time.Second)
@@ -71,7 +89,7 @@ func Signup() gin.HandlerFunc { // This function returns a Gin HTTP handler.
 			return
 		}
 
-		hashedPassword := HashPassword(*user.Password)
+		hashedPassword := HashPassword(*user.Password) // hash user entered function
 		user.Password = &hashedPassword
 
 		phoneCount, err := userCollection.CountDocuments(c, bson.M{"phone": user.Phone})
@@ -154,6 +172,7 @@ func Login() gin.HandlerFunc {
 	}
 }
 
+// Gin HTTP handler that retrieves users from MongoDB with pagination: when requester is admin
 func GetUsers() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
@@ -165,16 +184,20 @@ func GetUsers() gin.HandlerFunc {
 		c, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
+		// reads a query parameter from an HTTP request and converts it from a string to an integer.
 		recordPerPage, err := strconv.Atoi(ctx.Query("recordPerPage"))
 		if err != nil || recordPerPage < 1 {
 			recordPerPage = 10
 		}
 
+		// reads a query parameter from an HTTP request and converts it from a string to an integer.
+		// Reads a query parameter from the URL: GET /users?recordPerPage=10
 		page, err := strconv.Atoi(ctx.Query("page"))
 		if err != nil || page < 1 {
 			page = 1
 		}
 
+		// Calculate Pagination Start Index
 		startIndex := (page - 1) * recordPerPage
 
 		matchStage := bson.D{
@@ -232,9 +255,13 @@ func GetUsers() gin.HandlerFunc {
 	}
 }
 
+// Function to get user by id
 // this function returns another function that will handle the HTTP request.
 func GetUser() gin.HandlerFunc { // this function returns a Gin handler function.
 	return func(ctx *gin.Context) {
+
+		// ctx.Param("user_id") → Path Parameter
+		// ex: router.GET("/users/:user_id", GetUser)
 		userId := ctx.Param("user_id") // get userid from url
 
 		// with the function MatchUserTypeToUid we are trying to check, if the user is of admin or normal user
