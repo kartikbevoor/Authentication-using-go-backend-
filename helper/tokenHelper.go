@@ -98,6 +98,42 @@ func GenerateAllTokens(email, firstName, lastName, userType, uId string) (string
 // | iss   | issuer          |
 // | sub   | subject         |
 
+// function for verifying and decoding a JWT token
+func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
+	// signedToken: JWT token received from client
+	// claims: decoded JWT payload
+	// msg: error message if token invalid
+	token, err := jwt.ParseWithClaims(
+		signedToken,      // JWT received from client
+		&SignedDetails{}, // struct where payload will be decoded
+		func(t *jwt.Token) (interface{}, error) { // function returning secret key
+			return []byte(SECRET_KEY), nil // This function tells the JWT library: Use this key to verify the signature
+		},
+	) // 1 Decode Header, 2 Decode Payload, 3 Verify Signature, 4 Store payload in claims struct
+
+	if err != nil {
+		msg = err.Error()
+		return
+	}
+
+	// Extracting Claims
+	claims, ok := token.Claims.(*SignedDetails) // This converts generic claims into your custom struct.
+	if !ok {
+		msg = "the token is invalid"
+		return
+	}
+
+	// Type Assertion: token.Claims.(*SignedDetails) convert it to: *SignedDetails
+
+	// Checking Token Expiration
+	if claims.ExpiresAt < time.Now().Unix() {
+		msg = "token is expired"
+		return
+	}
+
+	return claims, msg
+}
+
 // function to updata a user's access token and refresh token in the database.
 // When a user logs in and new tokens are generated, this function updates those tokens in MongoDB for that user.
 func UpdateAllTokens(signedToken string, signedRefreshToken string, userId string) error {

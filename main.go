@@ -25,8 +25,8 @@ func main() {
 	// | `gin.Logger()` | Built-in middleware for logging HTTP requests |
 	// gin.Logger()	// logs every HTTP request to the console.
 
-	routes.AuthRoutes()
-	routes.UserRoutes()
+	routes.AuthRoutes(router)
+	routes.UserRoutes(router)
 
 	router.GET("/api-1", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{"success": "Access granted for api-1"})
