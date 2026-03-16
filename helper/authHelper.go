@@ -29,6 +29,6 @@ func MatchUserTypeToUid(ctx *gin.Context, userId string) (err error) {
 		err = errors.New("Unauthorized to access this resource")
 		return err
 	}
-	err = CheckUserType(ctx, userType)
+	// err = CheckUserType(ctx, userType)
 	return err
 }

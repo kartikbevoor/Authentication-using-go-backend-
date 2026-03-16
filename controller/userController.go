@@ -79,6 +79,12 @@ func Signup() gin.HandlerFunc { // This function returns a Gin HTTP handler.
 			return
 		}
 
+		// Validate struct
+		if err := validate.Struct(user); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		emailCount, err := userCollection.CountDocuments(c, bson.M{"email": user.Email}) // How many users exist with the same email address
 		// the above is same as SELECT COUNT(*) FROM users WHERE email="rahul@gmail.com"
 		// CountDocuments counts the number of documents in a MongoDB collection that match a filter.
@@ -88,9 +94,6 @@ func Signup() gin.HandlerFunc { // This function returns a Gin HTTP handler.
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while checking the email"})
 			return
 		}
-
-		hashedPassword := HashPassword(*user.Password) // hash user entered function
-		user.Password = &hashedPassword
 
 		phoneCount, err := userCollection.CountDocuments(c, bson.M{"phone": user.Phone})
 		// the above is to check if any user already exists with same number
@@ -104,6 +107,9 @@ func Signup() gin.HandlerFunc { // This function returns a Gin HTTP handler.
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "this email or phone already exists"})
 			return
 		}
+
+		hashedPassword := HashPassword(*user.Password) // hash user entered function
+		user.Password = &hashedPassword
 
 		user.CreatedAt = time.Now()
 		user.UpdatedAt = time.Now()
@@ -156,19 +162,29 @@ func Login() gin.HandlerFunc {
 			return
 		}
 
-		if foundUser.Email == nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
-		}
+		// this below code is not necessary
+		// if foundUser.Email == nil {
+		// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+		// 	return
+		// }
 
+		// here we are generating new tokens each time a user logins becos:
+		// each login represents a new authenticated session, so the server issues fresh tokens.
+		// also old tokens might be compramised, this restricts the user from logging from multiple devices.
 		token, refreshToken, _ := helper.GenerateAllTokens(*foundUser.Email, *foundUser.FirstName, *foundUser.LastName, *foundUser.UserType, foundUser.UserId)
 		helper.UpdateAllTokens(token, refreshToken, foundUser.UserId)
-		err = userCollection.FindOne(c, bson.M{"user_id": foundUser.UserId}).Decode(&foundUser)
 
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err})
-			return
-		}
-		ctx.JSON(http.StatusOK, foundUser)
+		// totally unnessary : we already have foundUser
+		// err = userCollection.FindOne(c, bson.M{"user_id": foundUser.UserId}).Decode(&foundUser)
+		// if err != nil {
+		// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		// 	return
+		// }
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"access_token":  token,
+			"refresh_token": refreshToken,
+		})
 	}
 }
 
